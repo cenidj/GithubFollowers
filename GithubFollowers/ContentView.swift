@@ -9,12 +9,17 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var username = ""
-    var followers:  [String] = []
+    @ObservedObject var viewModel = ViewModel("cesarionivar")
     
     var body: some View {
         GeometryReader { geometry in
-            VStack {
-                Spacer(minLength: 100)
+            VStack(spacing: 5) {
+                
+                Image(systemName: "pawprint.circle.fill")
+                    .resizable()
+                    .frame(width: 100, height: 100)
+                    
+                
                 Text("Github Followers")
                     .font(.largeTitle.bold())
                 
@@ -26,19 +31,23 @@ struct ContentView: View {
                 }
                 .padding()
                 
-                if followers.count != 0 {
-                    Text("Results")
+                if viewModel.followers.count != 0 {
+                    Text("Followers of Cesario Nivar")
                         .font(.title2)
                     
                     ScrollView {
-                        ForEach(0..<10) { i in
+                        ForEach(viewModel.followers) { follower in
                             HStack {
-                                Image(systemName: "star.fill")
-                                    .resizable()
-                                    .frame(width: 20, height: 20)
+                                AsyncImage(url: URL(string: follower.avatar_url)) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    ProgressView()
+                                }
+                                .frame(width: 50, height: 50)
+                                    
                                 
                                 VStack(alignment: .leading) {
-                                    Text("John Doe")
+                                    Text(follower.login)
                                         .font(.body)
                                     Text("Agust 20, 2022")
                                         .font(.caption)
@@ -57,6 +66,38 @@ struct ContentView: View {
             }
         }
     }
+}
+
+class ViewModel: ObservableObject {
+    @Published var followers: [Follower] = []
+    
+    init(_ username: String) {
+        let url = URL(string: "https://api.github.com/users/\(username)/followers")!
+        URLSession.shared.dataTask(with: url) {(data, response, error) in
+            
+            do {
+                if let data = data {
+                    let followers = try JSONDecoder().decode([Follower].self, from: data)
+                    DispatchQueue.main.sync {
+                        self.followers = followers
+                    }
+                } else {
+                    print("No data")
+                }
+            } catch {
+                print("Has occured an error!")
+            }
+        }
+        .resume()
+    }
+    
+    
+}
+
+struct Follower: Decodable, Identifiable {
+    let id: Int
+    let login: String
+    let avatar_url: String
 }
 
 struct ContentView_Previews: PreviewProvider {
